@@ -9,9 +9,11 @@ const accountSchema = new mongoose.Schema(
       index: true, //uses B-tree in backgroud. Speed will be fast while searching
     },
     status: {
+      type: String,
       enum: {
         values: ["ACTIVE", "FROZEN", "CLOSED"],
         message: "Status must be either ACTIVE, FROZEN or CLOSED",
+        default: "ACTIVE"
       },
     },
     currency: {
