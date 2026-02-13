@@ -25,6 +25,8 @@ const accountSchema = new mongoose.Schema(
   },
 );
 
+accountSchema.index({user:1,status:1}) //this will create a compound index on user and status fields. This will speed up the queries that filter by user and status.
+
 const accountModel = mongoose.model("account", accountSchema);
 
 module.exports = accountModel;
