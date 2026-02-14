@@ -40,3 +40,10 @@ ledgerSchema('updateOne',preventLedgerModification);
 ledgerSchema('deleteOne',preventLedgerModification);
 ledgerSchema('remove',preventLedgerModification);
 ledgerSchema('deleteMany',preventLedgerModification);
+ledgerSchema('updateMany',preventLedgerModification);
+ledgerSchema('findOneAndDelete',preventLedgerModification);
+ledgerSchema('findOneAndReplace',preventLedgerModification);
+
+const ledgerModel=mongoose.model('ledger',ledgerSchema);
+
+module.exports=ledgerModel;
