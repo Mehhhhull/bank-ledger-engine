@@ -20,32 +20,58 @@ const mongoose = require("mongoose");
  */
 
 async function createTransaction(req, res) {
-    /**
-     * 1. Validate request
-     */
+  /**
+   * 1. Validate request
+   */
   const { fromAccount, toAccount, amount, idempotencyKey } = req.body;
 
-  if(!fromAccount|| !toAccount|| !amount|| !idempotencyKey){
+  if (!fromAccount || !toAccount || !amount || !idempotencyKey) {
     return res.status(400).json({
-      message:"FromAccount, toAccount, amount, idempotencyKey  is required"
-    })
+      message: "FromAccount, toAccount, amount, idempotencyKey  is required",
+    });
   }
 
-  const fromUserAccount=await accountModel.findOne({
-    _id:fromAccount,
-  })//...
+  const fromUserAccount = await accountModel.findOne({
+    _id: fromAccount,
+  }); //...
 
-  const toUserAccount=await accountModel.findOne({
-    _id:toAccount
-  })//...
+  const toUserAccount = await accountModel.findOne({
+    _id: toAccount,
+  }); //...
 
-  if(!fromUserAccount|| !toUserAccount){
+  if (!fromUserAccount || !toUserAccount) {
     return res.status(400).json({
-      message:"Invalid to or from account"
-    })
+      message: "Invalid to or from account",
+    });
   }
 
-    /**
-     * 2. Validate idempotency key
-     */
+  /**
+   * 2. Validate idempotency key
+   */
+  const isTransactionAlreadyExsists = await transactionModel.findOne({
+    idempotencyKey: idempotencyKey,
+  });
+  if (isTransactionAlreadyExsists) {
+    if (isTransactionAlreadyExsists.status === "COMPLETED") {
+      res.status(200).json({
+        message: "Transaction Already Processed",
+        transaction: isTransactionAlreadyExsists,
+      });
+    }
+    if (isTransactionAlreadyExsists.status === "PENDING") {
+      res.status(200).json({
+        message: "Transaction is stil processing",
+      });
+    }
+    if (isTransactionAlreadyExsists.status === "FAILED") {
+      res.status(500).json({
+        message: "Transaction processing failed previosly,please retry",
+      });
+    }
+    if(isTransactionAlreadyExsists.status==="REVERSED"){
+      res.status(500).json({
+        message:"Transaction was reversed, please retry!!!"
+      })
+    }
+  }
 }
