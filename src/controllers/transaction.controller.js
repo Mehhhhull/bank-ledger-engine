@@ -53,25 +53,38 @@ async function createTransaction(req, res) {
   });
   if (isTransactionAlreadyExsists) {
     if (isTransactionAlreadyExsists.status === "COMPLETED") {
-      res.status(200).json({
+      return res.status(200).json({
         message: "Transaction Already Processed",
         transaction: isTransactionAlreadyExsists,
       });
     }
     if (isTransactionAlreadyExsists.status === "PENDING") {
-      res.status(200).json({
+      return res.status(200).json({
         message: "Transaction is stil processing",
       });
     }
     if (isTransactionAlreadyExsists.status === "FAILED") {
-      res.status(500).json({
+      return res.status(500).json({
         message: "Transaction processing failed previosly,please retry",
       });
     }
     if(isTransactionAlreadyExsists.status==="REVERSED"){
-      res.status(500).json({
+      return res.status(500).json({
         message:"Transaction was reversed, please retry!!!"
       })
     }
   }
+
+   /**
+   * 3. Check account status
+   */
+  if(fromUserAccount.status!=="ACTIVE"||toUserAccount.status !== "ACTIVE"){
+    return res.status(400).json({
+      message:"Both fromAccount and toAccount must be active to process transaction"
+    })
+  }
+     /**
+   * 4. Derive sender balance from ledger
+   */
+
 }

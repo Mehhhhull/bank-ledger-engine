@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const ledgerModel=
 
 const accountSchema = new mongoose.Schema(
   {
@@ -29,6 +30,8 @@ const accountSchema = new mongoose.Schema(
 );
 
 accountSchema.index({user:1,status:1}) //this will create a compound index on user and status fields. This will speed up the queries that filter by user and status.
+
+accountSchema.getBalance= async function(){}
 
 const accountModel = mongoose.model("account", accountSchema);
 
