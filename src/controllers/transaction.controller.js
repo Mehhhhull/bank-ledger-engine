@@ -116,37 +116,59 @@ async function createTransaction(req, res) {
     { session },
   );
 
-  const debitLedgerEntry=await ledgerModel.create({
-    account:fromAccount,
-    amount:amount,
-    transaction:transaction._id,
-    type:"DEBIT"
-  },{ session })
+  const debitLedgerEntry = await ledgerModel.create(
+    {
+      account: fromAccount,
+      amount: amount,
+      transaction: transaction._id,
+      type: "DEBIT",
+    },
+    { session },
+  );
 
-  const creditLedgerEntry=await ledgerModel.create({
-    account:toAccount,
-    amount:amount,
-    transaction:transaction._id,
-    type:"CREDIT"
-  },{ session },)
+  const creditLedgerEntry = await ledgerModel.create(
+    {
+      account: toAccount,
+      amount: amount,
+      transaction: transaction._id,
+      type: "CREDIT",
+    },
+    { session },
+  );
 
-  transation.status="COMPLETED"
-  await transaction.save({session})
+  transation.status = "COMPLETED";
+  await transaction.save({ session });
 
-  await session.commitTransaction()
-  session.endSession()
+  await session.commitTransaction();
+  session.endSession();
 
   /**
    * 10. Send email notification
    */
 
-  await emailService.sendTransactionEmail(req.user.email,req.user.name,amount,toAccount)
+  await emailService.sendTransactionEmail(
+    req.user.email,
+    req.user.name,
+    amount,
+    toAccount,
+  );
   return res.status(201).json({
-    message:"Transaction completed successfully",
-    transaction:transaction
-  })
+    message: "Transaction completed successfully",
+    transaction: transaction,
+  });
 }
 
-module.exports={
-  createTransaction
+async function createInitialFundsTransaction(req, res) {
+  const { toAccount, amount, idempotencyKey } = req.body
+
+  if(!toAccount|| !amount|| !idempotencyKey){
+    return res.status(400).json({
+      message:"toAccount,amount and idempotency key is required"
+    })
+  }
 }
+
+module.exports = {
+  createTransaction,
+  createInitialFundsTransaction,
+};
