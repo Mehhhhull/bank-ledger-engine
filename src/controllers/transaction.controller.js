@@ -68,37 +68,85 @@ async function createTransaction(req, res) {
         message: "Transaction processing failed previosly,please retry",
       });
     }
-    if(isTransactionAlreadyExsists.status==="REVERSED"){
+    if (isTransactionAlreadyExsists.status === "REVERSED") {
       return res.status(500).json({
-        message:"Transaction was reversed, please retry!!!"
-      })
+        message: "Transaction was reversed, please retry!!!",
+      });
     }
   }
 
-   /**
+  /**
    * 3. Check account status
    */
-  if(fromUserAccount.status!=="ACTIVE"||toUserAccount.status !== "ACTIVE"){
+  if (
+    fromUserAccount.status !== "ACTIVE" ||
+    toUserAccount.status !== "ACTIVE"
+  ) {
     return res.status(400).json({
-      message:"Both fromAccount and toAccount must be active to process transaction"
-    })
+      message:
+        "Both fromAccount and toAccount must be active to process transaction",
+    });
   }
-     /**
+  /**
    * 4. Derive sender balance from ledger
    */
-  const balance=await fromUserAccount.getBalance()
+  const balance = await fromUserAccount.getBalance();
 
-
-  if(balance<amount){
+  if (balance < amount) {
     return res.status(400).json({
-      message:`Insufficient balance . Current Balance is ${balance}. Requested amount is ${anount}`
-    })
+      message: `Insufficient balance . Current Balance is ${balance}. Requested amount is ${anount}`,
+    });
   }
 
   /**
-   * 5.Create Transaction(Pending)
+   * 5.Create Transaction(Pending), this is important
    */
-  const session=await mongoose.startSession()
-  session.startTransaction()
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  //iske baad kuch bhi likhoge wo ya toh pura complete hoga wrna revert back hojayega
 
+  const transaction = await transactionModel.create(
+    {
+      fromAccount,
+      toAccount,
+      amount,
+      idempotencyKey,
+      status: "PENDING",
+    },
+    { session },
+  );
+
+  const debitLedgerEntry=await ledgerModel.create({
+    account:fromAccount,
+    amount:amount,
+    transaction:transaction._id,
+    type:"DEBIT"
+  },{ session })
+
+  const creditLedgerEntry=await ledgerModel.create({
+    account:toAccount,
+    amount:amount,
+    transaction:transaction._id,
+    type:"CREDIT"
+  },{ session },)
+
+  transation.status="COMPLETED"
+  await transaction.save({session})
+
+  await session.commitTransaction()
+  session.endSession()
+
+  /**
+   * 10. Send email notification
+   */
+
+  await emailService.sendTransactionEmail(req.user.email,req.user.name,amount,toAccount)
+  return res.status(201).json({
+    message:"Transaction completed successfully",
+    transaction:transaction
+  })
+}
+
+module.exports={
+  createTransaction
 }
