@@ -90,6 +90,8 @@ async function userLoginController(req,res){
   
 }
 
+async function userLogoutController(req,res){}
+
 
 
 module.exports={
