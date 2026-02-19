@@ -105,7 +105,7 @@ async function createTransaction(req, res) {
   session.startTransaction();
   //iske baad kuch bhi likhoge wo ya toh pura complete hoga wrna revert back hojayega
 
-  const transaction = await transactionModel.create(
+  const transaction = new transactionModel(
     {
       fromAccount,
       toAccount,
@@ -113,26 +113,25 @@ async function createTransaction(req, res) {
       idempotencyKey,
       status: "PENDING",
     },
-    { session },
   );
 
   const debitLedgerEntry = await ledgerModel.create(
-    {
+    [{
       account: fromAccount,
       amount: amount,
       transaction: transaction._id,
       type: "DEBIT",
-    },
+    }],
     { session },
   );
 
   const creditLedgerEntry = await ledgerModel.create(
-    {
+    [{
       account: toAccount,
       amount: amount,
       transaction: transaction._id,
       type: "CREDIT",
-    },
+    }],
     { session },
   );
 
