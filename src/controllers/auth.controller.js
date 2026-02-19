@@ -1,100 +1,118 @@
-const userModel=require("../models/user.model")
-const jwt=require("jsonwebtoken")
-const emailService=require("../services/email.service")
+const userModel = require("../models/user.model");
+const jwt = require("jsonwebtoken");
+const emailService = require("../services/email.service");
+const tokenBlackListModel = require("../models/blackList.model");
 
+/**
+ * - user register controller
+ * - POST /api/auth/register
+ **/
 
-/** 
-* - user register controller
-* - POST /api/auth/register
-**/ 
+async function userRegisterController(req, res) {
+  const { email, name, password } = req.body;
 
-async function userRegisterController(req,res){
-const {email,name,password}=req.body;
+  const isExists = await userModel.findOne({
+    email: email,
+  });
 
-const isExists=await userModel.findOne({
-  email:email
-})
+  if (isExists) {
+    return res.status(422).json({
+      message: "Email already exsists, please use another email",
+      status: "failed",
+    });
+  }
+  const user = await userModel.create({
+    email,
+    password,
+    name,
+  });
 
-if(isExists){
-  return res.status(422).json({
-   message:"Email already exsists, please use another email",
-   status:"failed"
-  })
-}
-const user=await userModel.create({
-  email,password,name
-})
+  const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+    expiresIn: "7d",
+  });
 
-const token =jwt.sign({userId:user._id},process.env.JWT_SECRET,{
-  expiresIn:"7d"})
-
-  res.cookie("token",token)
+  res.cookie("token", token);
 
   res.status(201).json({
-    user:{
-      _id:user._id,
-      email:user.email,
-      name:user.name
+    user: {
+      _id: user._id,
+      email: user.email,
+      name: user.name,
     },
-    token:token
-  })
+    token: token,
+  });
 
-  await  emailService.sendRegistrationEmail(user.email,user.name)
+  await emailService.sendRegistrationEmail(user.email, user.name);
 }
-
-
-
 
 /** 
 * - User Login controller
 * - POST /api/auth/login 
 
-**/ 
+**/
 
-async function userLoginController(req,res){
-  const {email,password}=req.body;
+async function userLoginController(req, res) {
+  const { email, password } = req.body;
 
-  const user=await userModel.findOne({
-    email:email
-  }).select("+password")
-  if(!user){
+  const user = await userModel
+    .findOne({
+      email: email,
+    })
+    .select("+password");
+  if (!user) {
     return res.status(401).json({
-      message:"Invalid email or password",
-      status:"failed"
-     })
+      message: "Invalid email or password",
+      status: "failed",
+    });
   }
 
-  const isValidPassword=await user.comparedPassword(password)
+  const isValidPassword = await user.comparedPassword(password);
 
-  if(!isValidPassword){
+  if (!isValidPassword) {
     return res.status(401).json({
-      message:"Invalid email or password",
-      status:"failed"
-     })
+      message: "Invalid email or password",
+      status: "failed",
+    });
   }
 
-  const token =jwt.sign({userId:user._id},process.env.JWT_SECRET,{
-  expiresIn:"7d"})
+  const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+    expiresIn: "7d",
+  });
 
-  res.cookie("token",token)
+  res.cookie("token", token);
 
   res.status(200).json({
-    user:{
-      _id:user._id,
-      email:user.email,
-      name:user.name
+    user: {
+      _id: user._id,
+      email: user.email,
+      name: user.name,
     },
-    token:token
-  })
-    
-  
+    token: token,
+  });
 }
 
-async function userLogoutController(req,res){}
+async function userLogoutController(req, res) {
+  const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
 
+  if(!token){
+    return res.status(200).json({
+      message:"User logged out successfully"
+    })
+  }
 
+  res.cookie("token"," ")
 
-module.exports={
+    await tokenBlackListModel.create({
+      token:token
+    })
+
+    res.status(200).json({
+      message:"User logged out successfully!!"
+    })
+}
+
+module.exports = {
   userRegisterController,
-  userLoginController
-}
+  userLoginController,
+  userLogoutController
+};
