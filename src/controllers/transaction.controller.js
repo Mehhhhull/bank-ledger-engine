@@ -97,7 +97,9 @@ async function createTransaction(req, res) {
       message: `Insufficient balance . Current Balance is ${balance}. Requested amount is ${anount}`,
     });
   }
-
+  try {
+    
+  let transaction;
   /**
    * 5.Create Transaction(Pending), this is important
    */
@@ -105,7 +107,7 @@ async function createTransaction(req, res) {
   session.startTransaction();
   //iske baad kuch bhi likhoge wo ya toh pura complete hoga wrna revert back hojayega
 
-  const transaction = (
+  transaction = (
     await transactionModel.create(
       [
         {
@@ -156,6 +158,11 @@ async function createTransaction(req, res) {
 
   await session.commitTransaction();
   session.endSession();
+  } catch (error) {
+    return res.status(400).json({
+      message:"Transaction is pending due to some issue,please retry after some time!"
+    })
+  }
 
   /**
    * 10. Send email notification
