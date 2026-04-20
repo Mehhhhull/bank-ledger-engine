@@ -1,8 +1,8 @@
-const transactionModel = require("../models/transaction.model");
-const ledgerModel = require("../models/ledger.model");
-const accountModel = require("../models/account.model");
-const emailService = require("../services/email.service");
-const mongoose = require("mongoose");
+const transactionModel = require('../models/transaction.model');
+const ledgerModel = require('../models/ledger.model');
+const accountModel = require('../models/account.model');
+const emailService = require('../services/email.service');
+const mongoose = require('mongoose');
 
 /**
  * - Create a new transaction
@@ -27,7 +27,7 @@ async function createTransaction(req, res) {
 
   if (!fromAccount || !toAccount || !amount || !idempotencyKey) {
     return res.status(400).json({
-      message: "FromAccount, toAccount, amount, idempotencyKey  is required",
+      message: 'FromAccount, toAccount, amount, idempotencyKey  is required',
     });
   }
 
@@ -41,7 +41,7 @@ async function createTransaction(req, res) {
 
   if (!fromUserAccount || !toUserAccount) {
     return res.status(400).json({
-      message: "Invalid to or from account",
+      message: 'Invalid to or from account',
     });
   }
 
@@ -52,25 +52,25 @@ async function createTransaction(req, res) {
     idempotencyKey: idempotencyKey,
   });
   if (isTransactionAlreadyExsists) {
-    if (isTransactionAlreadyExsists.status === "COMPLETED") {
+    if (isTransactionAlreadyExsists.status === 'COMPLETED') {
       return res.status(200).json({
-        message: "Transaction Already Processed",
+        message: 'Transaction Already Processed',
         transaction: isTransactionAlreadyExsists,
       });
     }
-    if (isTransactionAlreadyExsists.status === "PENDING") {
+    if (isTransactionAlreadyExsists.status === 'PENDING') {
       return res.status(200).json({
-        message: "Transaction is stil processing",
+        message: 'Transaction is stil processing',
       });
     }
-    if (isTransactionAlreadyExsists.status === "FAILED") {
+    if (isTransactionAlreadyExsists.status === 'FAILED') {
       return res.status(500).json({
-        message: "Transaction processing failed previosly,please retry",
+        message: 'Transaction processing failed previosly,please retry',
       });
     }
-    if (isTransactionAlreadyExsists.status === "REVERSED") {
+    if (isTransactionAlreadyExsists.status === 'REVERSED') {
       return res.status(500).json({
-        message: "Transaction was reversed, please retry!!!",
+        message: 'Transaction was reversed, please retry!!!',
       });
     }
   }
@@ -78,13 +78,9 @@ async function createTransaction(req, res) {
   /**
    * 3. Check account status
    */
-  if (
-    fromUserAccount.status !== "ACTIVE" ||
-    toUserAccount.status !== "ACTIVE"
-  ) {
+  if (fromUserAccount.status !== 'ACTIVE' || toUserAccount.status !== 'ACTIVE') {
     return res.status(400).json({
-      message:
-        "Both fromAccount and toAccount must be active to process transaction",
+      message: 'Both fromAccount and toAccount must be active to process transaction',
     });
   }
   /**
@@ -98,84 +94,78 @@ async function createTransaction(req, res) {
     });
   }
   try {
-    
-  let transaction;
-  /**
-   * 5.Create Transaction(Pending), this is important
-   */
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  //iske baad kuch bhi likhoge wo ya toh pura complete hoga wrna revert back hojayega
+    let transaction;
+    /**
+     * 5.Create Transaction(Pending), this is important
+     */
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    //iske baad kuch bhi likhoge wo ya toh pura complete hoga wrna revert back hojayega
 
-  transaction = (
-    await transactionModel.create(
+    transaction = (
+      await transactionModel.create(
+        [
+          {
+            fromAccount,
+            toAccount,
+            amount,
+            idempotencyKey,
+            status: 'PENDING',
+          },
+        ],
+        { session },
+      )
+    )[0];
+
+    const debitLedgerEntry = await ledgerModel.create(
       [
         {
-          fromAccount,
-          toAccount,
-          amount,
-          idempotencyKey,
-          status: "PENDING",
+          account: fromAccount,
+          amount: amount,
+          transaction: transaction._id,
+          type: 'DEBIT',
         },
       ],
       { session },
-    )
-  )[0];
+    );
+    //10 seconds to wait.
+    await (() => {
+      return new Promise((resolve) => setTimeout(resolve, 100 * 1000));
+    })();
 
-  const debitLedgerEntry = await ledgerModel.create(
-    [
-      {
-        account: fromAccount,
-        amount: amount,
-        transaction: transaction._id,
-        type: "DEBIT",
-      },
-    ],
-    { session },
-  );
-  //10 seconds to wait.
-  await (() => {
-    return new Promise((resolve) => setTimeout(resolve, 100 * 1000));
-  })();
+    const creditLedgerEntry = await ledgerModel.create(
+      [
+        {
+          account: toAccount,
+          amount: amount,
+          transaction: transaction._id,
+          type: 'CREDIT',
+        },
+      ],
+      { session },
+    );
 
-  const creditLedgerEntry = await ledgerModel.create(
-    [
-      {
-        account: toAccount,
-        amount: amount,
-        transaction: transaction._id,
-        type: "CREDIT",
-      },
-    ],
-    { session },
-  );
+    await transactionModel.findOneAndUpdate(
+      { _id: transaction._id },
+      { status: 'COMPLETED' },
+      { session },
+    );
 
-  await transactionModel.findOneAndUpdate(
-    { _id: transaction._id },
-    { status: "COMPLETED" },
-    { session },
-  );
-
-  await session.commitTransaction();
-  session.endSession();
+    await session.commitTransaction();
+    session.endSession();
   } catch (error) {
     return res.status(400).json({
-      message:"Transaction is pending due to some issue,please retry after some time!"
-    })
+      message: 'Transaction is pending due to some issue,please retry after some time!',
+    });
   }
 
   /**
    * 10. Send email notification
    */
 
-  await emailService.sendTransactionEmail(
-    req.user.email,
-    req.user.name,
-    amount,
-    toAccount,
-  );
+  await emailService.sendTransactionEmail(req.user.email, req.user.name, amount, toAccount);
   return res.status(201).json({
-    message: "Transaction completed successfully",
+    message: 'Transaction completed successfully',
     transaction: transaction,
   });
 }
@@ -185,7 +175,7 @@ async function createInitialFundsTransaction(req, res) {
 
   if (!toAccount || !amount || !idempotencyKey) {
     return res.status(400).json({
-      message: "toAccount,amount and idempotency key is required",
+      message: 'toAccount,amount and idempotency key is required',
     });
   }
 
@@ -195,7 +185,7 @@ async function createInitialFundsTransaction(req, res) {
 
   if (!toUserAccount) {
     return res.status(400).json({
-      message: "Invalid toAccount",
+      message: 'Invalid toAccount',
     });
   }
 
@@ -205,7 +195,7 @@ async function createInitialFundsTransaction(req, res) {
 
   if (!fromUserAccount) {
     return res.status(400).json({
-      message: "System user account not found!!",
+      message: 'System user account not found!!',
     });
   }
 
@@ -218,7 +208,7 @@ async function createInitialFundsTransaction(req, res) {
     toAccount,
     amount,
     idempotencyKey,
-    status: "PENDING",
+    status: 'PENDING',
   });
 
   const debitLedgerEntry = await ledgerModel.create(
@@ -227,7 +217,7 @@ async function createInitialFundsTransaction(req, res) {
         account: fromUserAccount._id,
         amount: amount,
         transaction: transaction._id,
-        type: "DEBIT",
+        type: 'DEBIT',
       },
     ],
     { session },
@@ -239,20 +229,20 @@ async function createInitialFundsTransaction(req, res) {
         account: toAccount._id,
         amount: amount,
         transaction: transaction._id,
-        type: "CREDIT",
+        type: 'CREDIT',
       },
     ],
     { session },
   );
 
-  transaction.status = "COMPLETED";
+  transaction.status = 'COMPLETED';
   await transaction.save({ session });
 
   await session.commitTransaction();
   session.endSession();
 
   return res.status(201).json({
-    message: "Initial funds transaction completed successfully",
+    message: 'Initial funds transaction completed successfully',
     transaction: transaction,
   });
 }

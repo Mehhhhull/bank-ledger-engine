@@ -1,47 +1,46 @@
-const accountModel=require("../models/account.model");
+const accountModel = require('../models/account.model');
 
-async function createAccountController(req,res){
-  const user=req.user;
+async function createAccountController(req, res) {
+  const user = req.user;
 
-  const account=await accountModel.create({
-    user:user._id
-  })
+  const account = await accountModel.create({
+    user: user._id,
+  });
   return res.status(201).json({
-   account
-  })
+    account,
+  });
 }
-async function getUserAccountsController(req,res){
-  const accounts=await accountModel.find({user:req.user._id});
+async function getUserAccountsController(req, res) {
+  const accounts = await accountModel.find({ user: req.user._id });
 
   return res.status(200).json({
-    accounts
-  })
+    accounts,
+  });
 }
-async function getAccountBalanceController(req,res){
-  const {accountId}=req.params;
+async function getAccountBalanceController(req, res) {
+  const { accountId } = req.params;
 
-  const account=await accountModel.findOne({
-    _id:accountId,
-    user:req.user._id
-  })
+  const account = await accountModel.findOne({
+    _id: accountId,
+    user: req.user._id,
+  });
 
-  if(!account){
+  if (!account) {
     return res.status(404).json({
-      message:"Account not found"
-    })
+      message: 'Account not found',
+    });
   }
 
-  const balance=await account.getBalance()
+  const balance = await account.getBalance();
 
   res.status(200).json({
-    accountId:account._id,
-    balance:balance
-  })
+    accountId: account._id,
+    balance: balance,
+  });
 }
 
-
-module.exports={
+module.exports = {
   createAccountController,
   getUserAccountsController,
-  getAccountBalanceController
-}
+  getAccountBalanceController,
+};

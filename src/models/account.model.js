@@ -1,27 +1,26 @@
-const mongoose = require("mongoose");
-const ledgerModel=require("./ledger.model")
+const mongoose = require('mongoose');
+const ledgerModel = require('./ledger.model');
 
 const accountSchema = new mongoose.Schema(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "user",
-      required: [true, "User is required to create an account"],
+      ref: 'user',
+      required: [true, 'User is required to create an account'],
       index: true, //uses B-tree in backgroud. Speed will be fast while searching
     },
     status: {
       type: String,
       enum: {
-        values: ["ACTIVE", "FROZEN", "CLOSED"],
-        message: "Status must be either ACTIVE, FROZEN or CLOSED",
-        
+        values: ['ACTIVE', 'FROZEN', 'CLOSED'],
+        message: 'Status must be either ACTIVE, FROZEN or CLOSED',
       },
-      default: "ACTIVE"
+      default: 'ACTIVE',
     },
     currency: {
       type: String,
-      required: [true, "Currency is required to create an account"],
-      default: "INR",
+      required: [true, 'Currency is required to create an account'],
+      default: 'INR',
     },
   },
   {
@@ -29,51 +28,42 @@ const accountSchema = new mongoose.Schema(
   },
 );
 
-accountSchema.index({user:1,status:1}) //this will create a compound index on user and status fields. This will speed up the queries that filter by user and status.
+accountSchema.index({ user: 1, status: 1 }); //this will create a compound index on user and status fields. This will speed up the queries that filter by user and status.
 
 //aggregate model
-accountSchema.getBalance= async function(){
-  const balanceData=await ledgerModel.aggregate([
-    {$match :{account:this._id}},
+accountSchema.getBalance = async function () {
+  const balanceData = await ledgerModel.aggregate([
+    { $match: { account: this._id } },
     {
-      $group:{
-        _id:null,
-        totalDebit:{
-          $sum:{
-            $cond:[
-              {$eq:["$type","DEBIT"]},
-              "$amount",
-              0
-            ]
-          }
+      $group: {
+        _id: null,
+        totalDebit: {
+          $sum: {
+            $cond: [{ $eq: ['$type', 'DEBIT'] }, '$amount', 0],
+          },
         },
-         totalCredit:{
-          $sum:{
-            $cond:[
-              {$eq:["$type","CREDIT"]},
-              "$amount",
-              0
-            ]
-          }
-        }
-      }
+        totalCredit: {
+          $sum: {
+            $cond: [{ $eq: ['$type', 'CREDIT'] }, '$amount', 0],
+          },
+        },
+      },
     },
     {
-      $project:{
-        _id:0,
-        balance:{$subtract:["$totalCredit","$totalDebit"]}
-      }
-    }
-  ])
+      $project: {
+        _id: 0,
+        balance: { $subtract: ['$totalCredit', '$totalDebit'] },
+      },
+    },
+  ]);
 
-  if(balanceData===0){
-    return 0
+  if (balanceData === 0) {
+    return 0;
   }
 
-  return balanceData[0].balance
+  return balanceData[0].balance;
+};
 
-}
-
-const accountModel = mongoose.model("account", accountSchema);
+const accountModel = mongoose.model('account', accountSchema);
 
 module.exports = accountModel;

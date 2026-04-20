@@ -1,16 +1,15 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const tokenBlackListSchema = new mongoose.Schema(
   {
     token: {
       type: String,
-      required: [true, "Token is required to blacklist"],
-      unique: [true, "Token is already blacklisted"],
+      required: [true, 'Token is required to blacklist'],
+      unique: [true, 'Token is already blacklisted'],
     },
   },
   { timestamps: true },
 );
-
 
 //read
 tokenBlackListSchema.index(
@@ -20,9 +19,6 @@ tokenBlackListSchema.index(
   },
 );
 
-const tokenBlackListModel = mongoose.model(
-  "tokenBlackList",
-  tokenBlackListSchema,
-);
+const tokenBlackListModel = mongoose.model('tokenBlackList', tokenBlackListSchema);
 
 module.exports = tokenBlackListModel;
